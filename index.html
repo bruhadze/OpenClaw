@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boris Financial Command Center</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f1117;--card:#1a1d27;--border:#2a2d3a;--text:#e1e4ed;--dim:#8b8fa3;--green:#00c897;--red:#ff4d6a;--blue:#4d8dff;--gold:#ffc233;--purple:#a855f7;--orange:#ff8c42}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:20px;min-height:100vh}
+.header{text-align:center;margin-bottom:30px}
+.header h1{font-size:2rem;background:linear-gradient(135deg,var(--green),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px}
+.header .date{color:var(--dim);margin-top:6px;font-size:.9rem}
+.grid{display:grid;gap:20px;max-width:1400px;margin:0 auto}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:20px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;text-align:center;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kpi.income::before{background:var(--green)}.kpi.expense::before{background:var(--red)}.kpi.surplus::before{background:var(--blue)}.kpi.debt::before{background:var(--gold)}
+.kpi .label{color:var(--dim);font-size:.8rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.kpi .value{font-size:1.8rem;font-weight:700}
+.kpi.income .value{color:var(--green)}.kpi.expense .value{color:var(--red)}.kpi.surplus .value{color:var(--blue)}.kpi.debt .value{color:var(--gold)}
+.main-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px}
+.card h2{font-size:1rem;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.full-width{grid-column:1/-1}
+.chart-container{position:relative;height:280px;width:100%}
+.cc-bar{margin-bottom:10px}
+.cc-bar .cc-header{display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px}
+.cc-bar .cc-name{color:var(--text)}.cc-bar .cc-amount{color:var(--dim)}
+.cc-bar .bar-track{height:10px;background:#252836;border-radius:5px;overflow:hidden}
+.cc-bar .bar-fill{height:100%;border-radius:5px;transition:width .6s}
+.expense-list{list-style:none;padding:0}
+.expense-list li{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.85rem}
+.expense-list li:last-child{border:none}
+.expense-list .amt{color:var(--green);font-weight:600}
+.expense-list .owed{color:var(--dim);font-size:.75rem}
+.phase-timeline{display:flex;gap:0;position:relative;margin-top:10px}
+.phase{flex:1;padding:16px;border-radius:10px;position:relative;text-align:center}
+.phase h3{font-size:.9rem;margin-bottom:8px}
+.phase p{font-size:.78rem;color:var(--dim);line-height:1.4}
+.phase.p1{background:rgba(255,77,106,.12);border:1px solid rgba(255,77,106,.3)}
+.phase.p2{background:rgba(255,194,51,.12);border:1px solid rgba(255,194,51,.3)}
+.phase.p3{background:rgba(0,200,151,.12);border:1px solid rgba(0,200,151,.3)}
+.phase .arrow{position:absolute;right:-14px;top:50%;transform:translateY(-50%);font-size:1.2rem;color:var(--dim);z-index:1}
+.settlement-card{background:linear-gradient(135deg,rgba(255,194,51,.08),rgba(168,85,247,.08));border:1px solid rgba(255,194,51,.3)}
+.settlement-card .status{display:inline-block;background:rgba(255,194,51,.2);color:var(--gold);padding:4px 12px;border-radius:20px;font-size:.8rem;margin-bottom:12px}
+.settlement-card .range{font-size:1.6rem;font-weight:700;color:var(--gold);margin:8px 0}
+.settlement-card .detail{color:var(--dim);font-size:.85rem;margin:4px 0}
+@media(max-width:900px){.main-grid{grid-template-columns:1fr}.phase-timeline{flex-direction:column}.phase .arrow{display:none}}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>&#9670; BORIS FINANCIAL COMMAND CENTER &#9670;</h1>
+<div class="date" id="currentDate"></div>
+</div>
+<div class="grid">
+<div class="kpi-row">
+<div class="kpi income"><div class="label">Total Monthly Income</div><div class="value">$61,000</div></div>
+<div class="kpi expense"><div class="label">Total Monthly Expenses</div><div class="value">$43,740</div></div>
+<div class="kpi surplus"><div class="label">Monthly Surplus</div><div class="value">$17,260</div></div>
+<div class="kpi debt"><div class="label">Total Debt</div><div class="value">$1.80M</div></div>
+</div>
+<div class="main-grid">
+<div class="card">
+<h2>&#128200; Cash Flow Breakdown</h2>
+<div class="chart-container"><canvas id="cashFlowChart"></canvas></div>
+</div>
+<div class="card">
+<h2>&#128176; Debt Composition</h2>
+<div class="chart-container"><canvas id="debtChart"></canvas></div>
+</div>
+<div class="card full-width">
+<h2>&#128179; Credit Card Utilization</h2>
+<div id="ccBars"></div>
+</div>
+<div class="card">
+<h2>&#127968; Personal Expenses ($28,450/mo)</h2>
+<ul class="expense-list">
+<li><span>Mortgage</span><span class="amt">$2,700 <span class="owed">($380K owed)</span></span></li>
+<li><span>2nd Mortgage</span><span class="amt">$1,200 <span class="owed">($107K owed)</span></span></li>
+<li><span>Utilities</span><span class="amt">$1,500</span></li>
+<li><span>BMW</span><span class="amt">$1,800 <span class="owed">($116K owed)</span></span></li>
+<li><span>Genesis</span><span class="amt">$700 <span class="owed">($7.5K owed)</span></span></li>
+<li><span>Ducati</span><span class="amt">$500 <span class="owed">($7.5K owed)</span></span></li>
+<li><span>S1000</span><span class="amt">$900 <span class="owed">($12K owed)</span></span></li>
+<li><span>Cadillac Blackwing</span><span class="amt">$2,200 <span class="owed">($104.4K owed)</span></span></li>
+<li><span>Car &amp; Bike Insurance</span><span class="amt">$1,200</span></li>
+<li><span>Mom</span><span class="amt">$3,000</span></li>
+<li><span>SBA Loan 1</span><span class="amt">$2,500 <span class="owed">($515K owed)</span></span></li>
+<li><span>SBA Loan 2</span><span class="amt">$750 <span class="owed">($75K owed)</span></span></li>
+<li><span>T-Mobile</span><span class="amt">$350</span></li>
+<li><span>Gym</span><span class="amt">$150</span></li>
+<li><span>Coway</span><span class="amt">$250</span></li>
+<li><span>Subscriptions</span><span class="amt">$150</span></li>
+<li><span>MTB Business CC</span><span class="amt">$1,000 <span class="owed">($30K owed)</span></span></li>
+<li><span>Kapitus</span><span class="amt">$4,500 <span class="owed">($39K owed)</span></span></li>
+<li><span>Fed Taxes</span><span class="amt">$1,500 <span class="owed">($65K owed)</span></span></li>
+<li><span>MD Taxes</span><span class="amt">$1,600 <span class="owed">($45K owed)</span></span></li>
+</ul>
+</div>
+<div class="card">
+<h2>&#128666; Rocket Transport Expenses ($15,290/mo)</h2>
+<ul class="expense-list">
+<li><span>Black Ram</span><span class="amt">$0/mo <span class="owed">($85K owed)</span></span></li>
+<li><span>Truck Insurance</span><span class="amt">$2,400</span></li>
+<li><span>White Ram Truck</span><span class="amt">$1,800 <span class="owed">($110.7K owed)</span></span></li>
+<li><span>Motive (ELD)</span><span class="amt">$190</span></li>
+<li><span>Trailer Payment</span><span class="amt">$1,100 <span class="owed">($40K owed)</span></span></li>
+<li><span>Driver Pay</span><span class="amt">$4,000</span></li>
+<li><span>Peterbilt Truck</span><span class="amt">$800 <span class="owed">($30K owed)</span></span></li>
+<li><span>Fuel</span><span class="amt">$5,000</span></li>
+</ul>
+</div>
+<div class="card full-width">
+<h2>&#128640; Debt Paydown Strategy</h2>
+<div class="phase-timeline">
+<div class="phase p1"><h3 style="color:var(--red)">Phase 1 &#8212; NOW</h3><p>Keep paying Kapitus $4,500/mo.<br>Park surplus in HYSA.<br>Build emergency buffer.</p><span class="arrow">&#9654;</span></div>
+<div class="phase p2"><h3 style="color:var(--gold)">Phase 2 &#8212; SETTLEMENT</h3><p>GM settlement arrives ($75-100K).<br>Lump payoff Kapitus at discount.<br>Wipe credit cards ($26K).<br>Deploy remainder into income portfolio.</p><span class="arrow">&#9654;</span></div>
+<div class="phase p3"><h3 style="color:var(--green)">Phase 3 &#8212; POST-DEPLOY</h3><p>$22K+/month surplus into passive income.<br>Target $1K+/month passive within 6 months.<br>Snowball remaining vehicle debt.</p></div>
+</div>
+</div>
+<div class="card settlement-card">
+<h2>&#9878; GM Financial Settlement</h2>
+<div class="status">&#9679; PENDING</div>
+<div class="range">$75,000 &#8212; $100,000</div>
+<div class="detail">Expected Timeline: 30-90 days</div>
+<div class="detail">Status: Awaiting settlement offer</div>
+<div class="detail" style="margin-top:12px;color:var(--text);font-size:.9rem"><strong>Deployment Plan:</strong> Kapitus payoff &#8594; CC wipeout &#8594; Income portfolio</div>
+</div>
+<div class="card">
+<h2>&#128200; Net Worth Projection (24 Months)</h2>
+<div class="chart-container"><canvas id="projectionChart"></canvas></div>
+</div>
+</div>
+</div>
+<script>
+document.getElementById('currentDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+const cColors={green:'#00c897',red:'#ff4d6a',blue:'#4d8dff',gold:'#ffc233',purple:'#a855f7',orange:'#ff8c42',dim:'#8b8fa3'};
+// Cash Flow Doughnut
+new Chart(document.getElementById('cashFlowChart'),{type:'doughnut',data:{labels:['Personal Income ($37K)','Business Income ($24K)','Personal Expenses ($28.5K)','Business Expenses ($15.3K)'],datasets:[{data:[37000,24000,28450,15290],backgroundColor:[cColors.green,'#00a67d',cColors.red,'#cc3d55'],borderWidth:0,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#e1e4ed',padding:12,font:{size:11},usePointStyle:true,pointStyleWidth:8}}}}});
+// Debt Composition Doughnut
+new Chart(document.getElementById('debtChart'),{type:'doughnut',data:{labels:['High-Interest ($65.3K)','Personal Vehicles ($247.4K)','Fleet Vehicles ($265.7K)','Mortgage ($487K)','SBA Loans ($590K)','Taxes ($110K)'],datasets:[{data:[65288,247400,265705,487000,590000,110000],backgroundColor:[cColors.red,cColors.orange,cColors.purple,cColors.blue,cColors.gold,'#6366f1'],borderWidth:0,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#e1e4ed',padding:10,font:{size:10},usePointStyle:true,pointStyleWidth:8}}}}});
+// Credit Card Utilization Bars
+const ccData=[{name:'JPMCB (Chase)',balance:14000,limit:20000},{name:'Navy Federal (2)',balance:6932,limit:10000},{name:'Navy Federal (1)',balance:1944,limit:9500},{name:'Robinhood/Coastal',balance:1274,limit:5000},{name:'Apple Card',balance:1164,limit:3950},{name:'Capital One',balance:974,limit:4000},{name:'Cardless',balance:0,limit:2000},{name:'PNC Bank',balance:0,limit:15000}];
+const ccContainer=document.getElementById('ccBars');
+ccData.forEach(c=>{const pct=Math.round(c.balance/c.limit*100);const color=pct>50?cColors.red:pct>30?cColors.gold:cColors.green;const d=document.createElement('div');d.className='cc-bar';d.innerHTML=`<div class="cc-header"><span class="cc-name">${c.name}</span><span class="cc-amount">$${c.balance.toLocaleString()} / $${c.limit.toLocaleString()} (${pct}%)</span></div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>`;ccContainer.appendChild(d)});
+// Net Worth Projection
+const months=[];const noSettlement=[];const withSettlement=[];
+let nw=-1795393;let nwS=-1795393;const surplus=17260;
+for(let i=0;i<=24;i++){months.push(i===0?'Now':'M'+i);noSettlement.push(Math.round(nw));nw+=surplus;if(i===3){nwS+=87500;}withSettlement.push(Math.round(nwS));if(i>=3){nwS+=surplus+4500;}else{nwS+=surplus;}}
+new Chart(document.getElementById('projectionChart'),{type:'line',data:{labels:months,datasets:[{label:'Without Settlement',data:noSettlement,borderColor:cColors.dim,backgroundColor:'rgba(139,143,163,.1)',fill:true,tension:.3,pointRadius:0,borderWidth:2},{label:'With Settlement ($87.5K)',data:withSettlement,borderColor:cColors.green,backgroundColor:'rgba(0,200,151,.1)',fill:true,tension:.3,pointRadius:0,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#8b8fa3',font:{size:10}},grid:{color:'rgba(42,45,58,.5)'}},y:{ticks:{color:'#8b8fa3',font:{size:10},callback:v=>'$'+(v/1000).toFixed(0)+'K'},grid:{color:'rgba(42,45,58,.5)'}}},plugins:{legend:{labels:{color:'#e1e4ed',usePointStyle:true,pointStyleWidth:8,font:{size:11}}}}}});
+</script>
+</body>
+</html>
